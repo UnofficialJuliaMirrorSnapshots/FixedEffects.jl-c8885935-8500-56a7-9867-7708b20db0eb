@@ -110,15 +110,15 @@ function mul!(y::AbstractVector, fem::PreconditionnedLSMRFixedEffectMatrix,
                 fev::FixedEffectVector, α::Number, β::Number)
     rmul!(y, β)
     for (x, fe, cache) in zip(fev.fes, fem.fes, fem.caches)
-        helperN!(y, x, fe, α, cache)
+        helperN!(y, x, fe.refs, α, cache)
     end
     return y
 end
 
-function helperN!(y::AbstractVector, x::AbstractVector, fe::FixedEffect, 
+function helperN!(y::AbstractVector, x::AbstractVector, refs::AbstractVector, 
                 α::Number, cache::AbstractVector)
-    @inbounds @simd ivdep for i in eachindex(y)
-        y[i] += x[fe.refs[i]] * α * cache[i]
+    @simd ivdep for i in eachindex(y)
+        @inbounds y[i] += x[refs[i]] * α * cache[i]
     end
 end
 
@@ -128,15 +128,15 @@ function mul!(fev::FixedEffectVector, Cfem::Adjoint{T, PreconditionnedLSMRFixedE
     fem = adjoint(Cfem)
     rmul!(fev, β)
     for (x, fe, cache) in zip(fev.fes, fem.fes, fem.caches)
-        helperC!(x, fe, y, α, cache)
+        helperC!(x, fe.refs, y, α, cache)
     end
     return fev
 end
 
-function helperC!(x::AbstractVector, fe::FixedEffect, y::AbstractVector, 
+function helperC!(x::AbstractVector, refs::AbstractVector, y::AbstractVector, 
         α::Number, cache::AbstractVector)
-    @inbounds @simd ivdep for i in eachindex(y)
-        x[fe.refs[i]] += y[i] * α * cache[i]
+   @simd ivdep for i in eachindex(y)
+        @inbounds x[refs[i]] += y[i] * α * cache[i]
     end
 end
 
@@ -182,6 +182,19 @@ function solve_residuals!(r::AbstractVector, fep::LSMRFixedEffectMatrix; kwargs.
     mul!(r, fep.m, fep.x, -1.0, 1.0)
     return r, iterations, converged
 end
+function solve_residuals!(X::AbstractMatrix, fep::LSMRFixedEffectMatrix; kwargs...)
+    iterations = Vector{Int}(undef, size(X, 2))
+    convergeds = Vector{Bool}(undef, size(X, 2))
+    for j in 1:size(X, 2)
+        #view disables simd
+        X[:, j], iteration, converged = solve_residuals!(X[:, j], fep; kwargs...)
+        iterations[j] = iteration
+        convergeds[j] = converged
+    end
+    return X, iterations, convergeds
+end
+
+
 
 function _solve_coefficients!(r::AbstractVector, fep::LSMRFixedEffectMatrix; kwargs...)
     iterations, converged = solve!(fep, r; kwargs...)
