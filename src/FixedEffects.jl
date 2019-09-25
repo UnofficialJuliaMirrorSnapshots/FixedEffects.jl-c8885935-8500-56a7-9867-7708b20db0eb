@@ -8,24 +8,35 @@ module FixedEffects
 ##############################################################################
 import Base: size, copyto!, getindex, length, fill!, eltype, length, view, adjoint, show, ismissing
 import LinearAlgebra: mul!, rmul!, norm, Matrix, Diagonal, cholesky, cholesky!, Symmetric, Hermitian, rank, dot, eigen, axpy!, svd, I, Adjoint, adjoint, diag, qr
-if Base.USE_GPL_LIBS
-    import SparseArrays: SparseMatrixCSC, sparse
-end
 import Distributed: pmap
 import CategoricalArrays: CategoricalArray, CategoricalVector, compress, categorical, CategoricalPool, levels, droplevels!
 using FillArrays
 using Reexport
-@reexport using StatsBase
+using CUDAapi
+if has_cuda()
+	try
+		using CuArrays
+		@eval has_cuarrays() = true
+	catch
+		@info "CUDA is installed, but CuArrays.jl fails to load"
+		@eval has_cuarrays() = false
+	end
+else
+	has_cuarrays() = false
+end
+@reexport using StatsBase # used for Weights
 ##############################################################################
 ##
 ## Exported methods and types 
 ##
 ##############################################################################
 
+
 export 
 group,
 FixedEffect,
-FixedEffectMatrix,
+AbstractFixedEffectSolver,
+AbstractFixedEffectMatrix,
 solve_residuals!,
 solve_coefficients!
 
@@ -38,11 +49,14 @@ solve_coefficients!
 include("utils/lsmr.jl")
 include("FixedEffect.jl")
 include("solve.jl")
-include("AbstractFixedEffectMatrix/FixedEffectLinearMap.jl")
-if Base.USE_GPL_LIBS
-    include("AbstractFixedEffectMatrix/FixedEffectCSC.jl")
-end
+include("AbstractFixedEffectSolver/FixedEffectLinearMap.jl")
+include("AbstractFixedEffectSolver/FixedEffectLSMR.jl")
+include("AbstractFixedEffectSolver/FixedEffectLSMRParallel.jl")
 
+if has_cuarrays()
+	include("AbstractFixedEffectSolver/FixedEffectLSMRGPU.jl")
+end
+AbstractFixedEffectMatrix{T} = AbstractFixedEffectSolver{T}
 
 
 end  # module FixedEffectModels
