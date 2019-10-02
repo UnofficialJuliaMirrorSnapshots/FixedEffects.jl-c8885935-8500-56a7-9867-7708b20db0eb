@@ -1,4 +1,3 @@
-
 module FixedEffects
 
 ##############################################################################
@@ -6,10 +5,10 @@ module FixedEffects
 ## Dependencies
 ##
 ##############################################################################
-import Base: size, copyto!, getindex, length, fill!, eltype, length, view, adjoint, show, ismissing
-import LinearAlgebra: mul!, rmul!, norm, Matrix, Diagonal, cholesky, cholesky!, Symmetric, Hermitian, rank, dot, eigen, axpy!, svd, I, Adjoint, adjoint, diag, qr
-import Distributed: pmap
-import CategoricalArrays: CategoricalArray, CategoricalVector, compress, categorical, CategoricalPool, levels, droplevels!
+using Base
+using LinearAlgebra
+using Distributed
+using CategoricalArrays
 using FillArrays
 using Reexport
 using CUDAapi
@@ -36,7 +35,6 @@ export
 group,
 FixedEffect,
 AbstractFixedEffectSolver,
-AbstractFixedEffectMatrix,
 solve_residuals!,
 solve_coefficients!
 
@@ -48,15 +46,12 @@ solve_coefficients!
 ##############################################################################
 include("utils/lsmr.jl")
 include("FixedEffect.jl")
-include("solve.jl")
-include("AbstractFixedEffectSolver/FixedEffectLinearMap.jl")
-include("AbstractFixedEffectSolver/FixedEffectLSMR.jl")
-include("AbstractFixedEffectSolver/FixedEffectLSMRParallel.jl")
-
+include("FixedEffectLinearMap.jl")
+include("FixedEffectSolvers/AbstractFixedEffectSolver.jl")
+include("FixedEffectSolvers/FixedEffectSolverLSMR.jl")
+include("FixedEffectSolvers/FixedEffectSolverLSMRParallel.jl")
 if has_cuarrays()
-	include("AbstractFixedEffectSolver/FixedEffectLSMRGPU.jl")
+	include("FixedEffectSolvers/FixedEffectSolverLSMRGPU.jl")
 end
-AbstractFixedEffectMatrix{T} = AbstractFixedEffectSolver{T}
 
-
-end  # module FixedEffectModels
+end  # module FixedEffects

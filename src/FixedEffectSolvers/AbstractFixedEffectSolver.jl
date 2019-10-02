@@ -11,7 +11,7 @@ abstract type AbstractFixedEffectSolver{T} end
 """
 Solve a least square problem for a set of FixedEffects
 
-`solve_residuals!(y, fes, weights; method = :lsmr, maxiter = 10000, tol = 1e-8)`
+`solve_residuals!(y, fes, weights; method = :lsmr, maxiter = 10000, double_precision = true, tol = 1e-8)`
 
 ### Arguments
 * `y` : A `AbstractVector` or an `AbstractMatrix`
@@ -20,7 +20,7 @@ Solve a least square problem for a set of FixedEffects
 * `method` : A `Symbol` for the method. Choices are :lsmr, :lsmr_threads, :lsmr_parallel, :lsmr_gpu (requires `CuArrays`. Use the option `double_precision = false` to use `Float32` on the GPU).
 * `maxiter` : Maximum number of iterations
 * `double_precision::Bool`: Should the demeaning operation use Float64 rather than Float32? Default to true.
-* `tol` : Tolerance
+* `tol` : Tolerance. Default to 1e-8 if `double_precision = true`, 1e-6 otherwise.
 
 ### Returns
 * `res` :  Residual of the least square problem
@@ -35,28 +35,18 @@ p2 = repeat(1:5, outer = 2)
 solve_residuals!(rand(10), [FixedEffect(p1), FixedEffect(p2)])
 ```
 """
-function solve_residuals!(y::Union{AbstractVector, AbstractMatrix}, fes::AbstractVector{<: FixedEffect}, weights::AbstractWeights = Weights(Ones{eltype(y)}(size(y, 1))); 
+function solve_residuals!(y::Union{AbstractVector{<: Number}, AbstractMatrix{<: Number}}, fes::AbstractVector{<: FixedEffect}, weights::AbstractWeights = Weights(Ones{eltype(y)}(size(y, 1))); 
 	method::Symbol = :lsmr, maxiter::Integer = 10000, 
-	double_precision::Bool = eltype(y) == Float64, tol::Real = double_precision ? sqrt(eps(Float64)) : sqrt(eps(Float32)))
+	double_precision::Bool = eltype(y) == Float64, tol::Real = double_precision ? 1e-8 : 1e-6)
 	any(ismissing.(fes)) && error("Some FixedEffect has a missing value for reference or interaction")
 	feM = AbstractFixedEffectSolver{double_precision ? Float64 : Float32}(fes, sqrt.(weights.values), Val{method})
 	solve_residuals!(y, feM; maxiter = maxiter, tol = tol)
 end
 
-function solve_residuals!(X::AbstractMatrix, feM::AbstractFixedEffectSolver; kwargs...)
-	iterations = Int[]
-	convergeds = Bool[]
-	for x in eachcol(X)
-		_, iteration, converged = solve_residuals!(x, feM; kwargs...)
-		push!(iterations, iteration)
-		push!(convergeds, converged)
-	end
-	return X, iterations, convergeds
-end
 """
 Solve a least square problem for a set of FixedEffects
 
-`solve_coefficients!(y, fes, weights; method = :lsmr, maxiter = 10000, tol = 1e-8)`
+`solve_coefficients!(y, fes, weights; method = :lsmr, maxiter = 10000, double_precision = true, tol = 1e-8)`
 d
 ### Arguments
 * `y` : A `AbstractVector` 
@@ -65,7 +55,7 @@ d
 * `method` : A `Symbol` for the method. Choices are :lsmr, :lsmr_threads, :lsmr_parallel, :lsmr_gpu (requires `CuArrays`. Use the option `double_precision = false` to use `Float32` on the GPU).
 * `maxiter` : Maximum number of iterations
 * `double_precision::Bool`: Should the demeaning operation use Float64 rather than Float32? Default to true.
-* `tol` : Tolerance
+* `tol` : Tolerance. Default to 1e-8 if `double_precision = true`, 1e-6 otherwise.
 
 ### Returns
 * `b` : Solution of the least square problem
@@ -85,9 +75,9 @@ x = rand(10)
 solve_coefficients!(rand(10), [FixedEffect(p1), FixedEffect(p2)])
 ```
 """
-function solve_coefficients!(y::AbstractVector, fes::AbstractVector{<: FixedEffect}, weights::AbstractWeights  = Weights(Ones{eltype(y)}(length(y))); 
+function solve_coefficients!(y::AbstractVector{<: Number}, fes::AbstractVector{<: FixedEffect}, weights::AbstractWeights  = Weights(Ones{eltype(y)}(length(y))); 
 	method::Symbol = :lsmr, maxiter::Integer = 10000,
-	double_precision::Bool = eltype(y) == Float64, tol::Real = double_precision ? sqrt(eps(Float64)) : sqrt(eps(Float32)))
+	double_precision::Bool = eltype(y) == Float64, tol::Real = double_precision ? 1e-8 : 1e-6)
 	any(ismissing.(fes)) && error("Some FixedEffect has a missing value for reference or interaction")
 	feM = AbstractFixedEffectSolver{double_precision ? Float64 : Float32}(fes, sqrt.(weights.values), Val{method})
 	solve_coefficients!(y, feM; maxiter = maxiter, tol = tol)
